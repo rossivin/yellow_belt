@@ -57,3 +57,11 @@ class FilterInterface():
 		part2 = brand1_volume_left * (self.brand1.cost - self.brand2.cost*(self.brand1.alcohol/self.brand2.alcohol))
 		return part1 + part2
 
+	def alcoholyzerValue(self, volume, alcoholyzer_location):
+		"""Alcoholyzer location needs to be in hLs"""
+		if volume <= alcoholyzer_location:
+			return self.brand1.alcohol
+		else:
+			interface_volume = volume - alcoholyzer_location
+			brand1_composition_out = math.exp(-interface_volume/self.vessel.volume)
+			return self.brand1.alcohol * brand1_composition_out + self.brand2.alcohol * (1 - brand1_composition_out)
