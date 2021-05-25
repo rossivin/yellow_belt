@@ -6,19 +6,19 @@ import openpyxl as xl
 """INPUTS"""
 #brand1
 brand1_name = "Budweiser"
-brand1_cost = 22.50
-brand1_abv = 5.0
+brand1_cost = 29.5
+brand1_abv = 5.5
 #brand2
 brand2_name = "Bud Light"
 brand2_cost = 30.00
 brand2_abv = 6.0
 #filter
 filter_volume = 40.0
-pre_filter_volume = 10.0
-post_filter_volume = 20.0
-alcoholyzer_location = 15.0
+pre_filter_volume = 13.0
+post_filter_volume = 28.7
+alcoholyzer_location = 36.7
 #parameters
-switch_volume = 25
+switch_volume = 37.5
 volume_interval = 1
 
 """INITIALIZING"""
@@ -32,6 +32,7 @@ def simulate_instant(switch_volume, vessel, brand1, brand2):
 	print("Pre-Filter Volume: %.2f hL" % pre_filter_volume)
 	print("Post-Filter Volume: %.2f hL" % post_filter_volume)
 
+	print("Volume Pushed at Switch Point: {:.2f} hL".format(switch_volume))
 	print("\nTotal Volume of Brand 1 ({}) in Brand 2 ({}): {:.2f} hL".format(brand1.name, brand2.name, interface_sim.brandVolumeLeft(1, switch_volume)))
 	print("Total Volume of Brand 2 ({}) in Brand 1 ({}): {:.2f} hL".format(brand2.name, brand1.name, interface_sim.totalBrandVolumeOut(2, switch_volume)))
 	print("Financial Impact of Switch: CAD {:.2f}".format(interface_sim.financialImpactOfSwitch(switch_volume)))
@@ -53,6 +54,8 @@ def simulate_excel(vessel, brand1, brand2):
 		sheet.cell(row = r, column = 3).value = interface_sim.totalBrandVolumeOut(2, current_volume)
 		sheet.cell(row = r, column = 4).value = interface_sim.financialImpactOfSwitch(current_volume)
 		sheet.cell(row = r, column = 5).value = interface_sim.alcoholyzerValue(current_volume, alcoholyzer_location)
+		sheet.cell(row = r, column = 6).value = interface_sim.outletComposition(1, current_volume)
+		sheet.cell(row = r, column = 7).value = interface_sim.outletComposition(2, current_volume)
 
 		current_volume += volume_interval
 		r += 1
@@ -66,6 +69,8 @@ def excel_headings(sheet):
 	sheet.cell(row = 3, column = 3).value = "Volume of Brand 2 Out"
 	sheet.cell(row = 3, column = 4).value = "Financial Impact of Switch"
 	sheet.cell(row = 3, column = 5).value = "Alcoholyzer Reading"
+	sheet.cell(row = 3, column = 6).value = "Brand 1 Outlet Composition"
+	sheet.cell(row = 3, column = 7).value = "Brand 2 Outlet Composition"
 
 simulate_instant(switch_volume, vessel, brand1, brand2)
 

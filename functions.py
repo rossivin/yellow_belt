@@ -54,7 +54,7 @@ def getCompatibility(brand1_name, brand2_name, sim_settings):
 				if cVal2 == 1:
 					return 1
 				elif cVal2 == 2:
-					return 2
+					return 1
 				else:
 					return 3
 			elif cVal1 == 2:

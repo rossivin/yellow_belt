@@ -27,9 +27,9 @@ def main_loop():
 
 def test_filter():
 
-	filter_volume = 26
-	filter_pre_volume = 11
-	filter_post_volume = 0.5
+	filter_volume = 40
+	filter_pre_volume = 11.6
+	filter_post_volume = 75-11.6-40
 
 	my_filter = FilterVessel(filter_volume, filter_pre_volume, filter_post_volume)
 
@@ -43,7 +43,7 @@ def test_filter():
 	brand2.alcohol = 0.1
 
 	filter_simulation = FilterInterface(my_filter, brand1, brand2)
-	switch_volume = 43/60*150
+	switch_volume = 37.5
 	financial_impact = filter_simulation.financialImpactOfSwitch(switch_volume)
 	outlet_composition = filter_simulation.outletComposition(1,switch_volume)*100
 
@@ -57,5 +57,5 @@ def test_filter():
 	print("Outlet Composition",outlet_composition,"%")
 
 main_loop()
-#test_filter()
+test_filter()
 

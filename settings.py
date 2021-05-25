@@ -16,8 +16,8 @@ class Settings():
 		self.filter_specs = [filter1, filter2]
 
 		#INTERFACE SETTINGS
-		switch1 = {0: 70, 1: 70, 2: 50, 3: 0, 4: 0}
-		switch2 = {0: 70, 1: 70, 2: 50, 3: 0, 4: 0}
+		switch1 = {0: 70, 1: 37.5, 2: 50, 3: 0, 4: 0}
+		switch2 = {0: 70, 1: 37.5, 2: 50, 3: 0, 4: 0}
 		self.interface_specs = [switch1, switch2]
 
 		#BRAND INFORMATION
