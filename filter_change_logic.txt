@@ -1,0 +1,319 @@
+HERE A CHANGE BRAND IS INITIATED BY THE OPERATOR
+
+
+        IF (CHGBRAND_1101.VAL IS ON AND BRAND_CHG_FLAG.VAL IS OFF AND \
+            NSTOP_1101.VAL IS OFF) THEN
+            SET FILTCTRL_1101.VAL = RAZ_CUBE
+            WAIT FOR 1 SEC
+            WAIT UNTIL (STAT_151.VAL = RAZED_CUBE OR FILTCTRL_1101.VAL <> RAZ_CUBE)
+            SET FILTCTRL_1101.VAL = RECIRC
+            CALL RECIRC_CODES
+
+            { Get parameters for new brand      }
+
+            CALL ENTER_PARAMS 
+            
+            {*************** DEBUT GBEER ***************}
+            CALL VERIFICATION_CHANGEMENT
+            CALL TRANSITION
+            
+            SET FILTCTRL_1101.VAL = RECIRC
+            CALL RECIRC_CODES
+            {*************** FIN GBEER ***************} 
+
+        ENDIF
+
+
+{*****************************************************************************}
+THIS FUNCTION CHECKS THE COMPATIBILITY BETWEEN BRANDS
+
+BRAND CHANGE VERIFICATION {CHECK IF DCW PUSH NEEDED}
+The function checks whether a DCW push must be carried out for the brand change
+Beers from the same family do not require pushing
+All other beers require pushing between brands
+
+
+DECLARATIONS
+
+    VAR VERIFICATION
+
+    EXECUTABLE 
+   
+    TYPE_POUSSAGE_REQUIS = BAD_MATCH
+    
+    IF (OLDBRAND = BRAND_1101.VAL) THEN
+        TYPE_POUSSAGE_REQUIS = SAME
+    ELSE   
+        VERIFICATION = BRAND_TEST(OLDBRAND, BRAND_1101.VAL)
+        
+        DO CASE VERIFICATION
+            CASE SAME
+                TYPE_POUSSAGE_REQUIS = SAME
+                
+            CASE COMPATIBLE
+                TYPE_POUSSAGE_REQUIS = COMPATIBLE
+                
+            CASE BAD_MATCH
+                TYPE_POUSSAGE_REQUIS = BAD_MATCH
+            OTHER
+                TYPE_POUSSAGE_REQUIS = BAD_MATCH
+        ENDCASE        
+    ENDIF
+ENDSUBR {VERIFICATION_CHANGEMENT}
+
+{*********************************************************************}
+ HERE I JUSTED PUT THE BEGINNING OF BRAND_TEST FUNCTION TO GIVE YOU AN IDEA OF THE LOGIC
+
+{ MODIFIER ICI - MARQUE } 
+FUNCTION BRAND_TEST    
+
+    ANY     FROM_BRAND
+    ANY     TO_BRAND
+
+DECLARATIONS
+
+EXECUTABLE
+
+    BRAND_MATCH = BAD_MATCH
+    SET I101_CM_FAMILLE.VAL = OFF
+    SET I101_CM_COMP.VAL = OFF
+    SET I101_CM_INCOMP.VAL = OFF
+    SKIP CYCLE
+
+    DO CASE FROM_BRAND
+        CASE 1,20  {50}
+            DO CASE TO_BRAND
+                CASE 1,20
+                    BRAND_MATCH = SAME
+                CASE 3,6,10,12,18,21,23,24,25,27,28,29,32,36,47,48,49,50,52,58,62
+                    BRAND_MATCH = COMPATIBLE
+            END CASE
+
+        CASE 3,21,49,58  {BLEUE}
+            DO CASE TO_BRAND
+                CASE 3,21,49,58
+                    BRAND_MATCH = SAME
+                CASE 1,6,10,12,18,20,23,24,25,27,28,29,32,36,47,48,50,52,62
+                    BRAND_MATCH = COMPATIBLE
+            END CASE
+
+        CASE 5,7,64   {BUD, BUD SHOT}
+       {POUR LA BUD SHOT ON INJECTE DE LA SAVEUR A PARTIR DES CUBES}
+       {ET DU MB80 A PARTIR DES FONDS, ET LES INJECTIONS SE TERMINENT}
+       {BIEN AVANT LA FIN DU VOLUME A FILTRER. DONC ON CONSIDERE QUE C'EST DE LA BUD} 
+            DO CASE TO_BRAND
+                CASE 5,7,64
+                    BRAND_MATCH = SAME
+                CASE 1,3,6,8,10,12,18,20,21,23,24,25,27,28,29
+                    BRAND_MATCH = COMPATIBLE
+                CASE 32,33,36,47,48,49,50,52,58,62
+                    BRAND_MATCH = COMPATIBLE
+            END CASE
+        
+        CASE 6  {ROLLING ROCK }
+            DO CASE TO_BRAND
+                CASE 6
+                    BRAND_MATCH = SAME
+                CASE 1,3,10,12,18,20,21,23,24,25,27,28,29,32,36,49,58,62
+                    BRAND_MATCH = COMPATIBLE
+            END CASE
+
+        CASE 8,33  {BUD LIGHT}
+            DO CASE TO_BRAND
+                CASE 8,33
+                    BRAND_MATCH = SAME
+                CASE 1,3,5,6,10,11,12,18,20,21,23,24,25,27,28,29,32,35,36,52,58,62
+                    BRAND_MATCH = COMPATIBLE
+                CASE 47 TO 50
+                    BRAND_MATCH = COMPATIBLE    
+            END CASE
+            
+        CASE 9 {Stella Artois}
+            DO CASE TO_BRAND
+                CASE 9
+                    BRAND_MATCH = SAME
+            END CASE
+            
+            
+{*****************************************************************************}
+
+IN THIS FUNCTION, THE VOLUME OF THE PUSH IS CALCULATED, ACCORDING TO WHAT TYPE OF PUSH, BEER OR DCW (EDR) WATER.
+EDR : Eau dÃ©saÃ©rÃ©e refroidie
+
+FUNCTION TRANSITION
+
+DECLARATIONS
+    VAR ALC_DEVIATION
+    VAR VOL_POUSSAGE_COMPLETE
+    VAR LAR_VOL
+    VAR MEMORY_VOL
+    VAR CTRL_POUSSAGE_CHANGE
+
+EXECUTABLE
+    
+    {*** DEBUT GBEER ***}    
+    {on desactive l'injection pour le dernier X hl}
+    SET FILT1_INJECT_REQUEST.VAL = OFF
+    SET DEMANDE_INJ_ING1.VAL = OFF
+    SET DEMANDE_INJ_ING2.VAL = OFF
+    SET DEMANDE_INJ_ING3.VAL = OFF
+    SET DEMANDE_INJ_HEXA.VAL = OFF
+    SET DEMANDE_INJ_CUBE.VAL = OFF
+    ALC_DEVIATION = OFF
+    VOL_POUSSAGE_COMPLETE = OFF
+    LAR_VOL = 0
+    POUSSAGE_EDR_COMPLET = FALSE
+    CTRL_POUSSAGE_CHANGE = OFF
+    MEMORY_VOL = 500
+    
+    {On verifie la destination du poussage. 1 = FONDS/DRAIN selon marque}
+    DISPL_DEST = TANK
+    CALL TANK_VLV_CTRL(DEST_1101.VAL, OPEN, TRUE)      
+    
+    DO CASE TYPE_POUSSAGE_REQUIS
+        CASE SAME, COMPATIBLE
+            {Poussage biere-biere en cours (701)}
+            DISPLAY MESSAGE 701 COLOR WHITE USING FILTRE1_MSG1
+            
+            START BIERE_PACK_F1_TOTAL
+            WAIT FOR 5 SEC
+            
+            IF (OLDSOURCE <> SOURCE) THEN
+                CALL CTRL_IST (1, SOURCE)
+                CALL CTRL_IST (0, OLDSOURCE)
+            ELSE
+                CALL CTRL_IST (1, SOURCE)
+            ENDIF
+
+            SET IST1_POS.VAL = OPEN
+            
+            SET FILTCTRL_1101.VAL = CLEAR_RECIRC
+            WAIT UNTIL (STAT_151.VAL = RDY_TO_RUN OR FILTCTRL_1101.VAL <> CLEAR_RECIRC)
+            
+            SET FILTCTRL_1101.VAL = BEER_RUN
+            WAIT UNTIL (STAT_151.VAL = BEER_RUN OR FILTCTRL_1101.VAL <> BEER_RUN)
+            
+            {On change le SP du refroidisseur pour le poussage EDR}
+            SET I2TIC0040.SP = -0.5    
+            
+            {On descend le niveau du reservoir RTS}
+            SET OSTCTRL_1101.VAL = POUSSAGE_EDR    
+            WAIT UNTIL STAT_161.VAL = POUSSAGE_EDR
+        
+        CASE BAD_MATCH
+            {Poussage EDR en cours (700)}        
+            DISPLAY MESSAGE 700 COLOR WHITE USING FILTRE1_MSG1
+            
+            START EDR_PACK_F1_TOTAL
+            WAIT FOR 5 SEC
+            
+            CALL CTRL_IST (0, OLDSOURCE){*}
+                        
+            SET IST1_POS.VAL = CLOSED
+            
+            SET FILTCTRL_1101.VAL = POUSSAGE_EDR    
+            WAIT UNTIL (STAT_151.VAL = POUSSAGE_EDR OR FILTCTRL_1101.VAL <> POUSSAGE_EDR)    
+            
+            {On change le SP du refroidisseur pour le poussage EDR}
+            SET I2TIC0040.SP = 5    
+            
+            {On descend le niveau du reservoir RTS}
+            SET OSTCTRL_1101.VAL = POUSSAGE_EDR    
+            WAIT UNTIL STAT_161.VAL = POUSSAGE_EDR
+    END CASE
+    
+    IF (LAR_SYSTEM.VAL = FALSE) SET PLATOCTRL_1101.VAL = BEER_RUN {0 = BBT. On part dilution}
+    
+    IF(LAR_SYSTEM.VAL = TRUE)THEN
+        IF (DEST_1101.VAL > 415 AND DEST_1101.VAL < 421) LAR_VOL = LAR_1.VAL
+        IF (DEST_1101.VAL > 425 AND DEST_1101.VAL < 431) LAR_VOL = LAR_2.VAL
+    ELSE
+        LAR_VOL = 0
+    ENDIF
+    
+    RESET EDR_PACK_F1_TOTAL(0)
+    RESET BIERE_PACK_F1_TOTAL(0)  
+    
+    IF (TYPE_POUSSAGE_REQUIS = BAD_MATCH) THEN
+        REPEAT        
+            WAIT FOR 1 SEC 
+            
+            IF (FILTCTRL_1101.VAL <> POUSSAGE_EDR) THEN
+                HOLD EDR_PACK_F1_TOTAL
+            ELSE
+                START EDR_PACK_F1_TOTAL
+            ENDIF
+            
+            IF (I3HS0131.VAL = ON) THEN
+                IF ((I3AT0131_PV.VAL < (TRGALC_1101.VAL - ALC_DEVIATION_CST.VAL)) AND \
+                    (EDR_PACK_F1_TOTAL.VAL > VOL_EDR_CIRCUIT.VAL )AND MEMORY_VOL = 500) THEN
+                    MEMORY_VOL = EDR_PACK_F1_TOTAL.VAL
+                ELSE
+                    IF (MEMORY_VOL <> 500 AND EDR_PACK_F1_TOTAL.VAL > (MEMORY_VOL + LAR_VOL)) \
+                        ALC_DEVIATION = ON
+                ENDIF
+            ELSE
+                IF (EDR_PACK_F1_TOTAL.VAL > (VOL_EDR_CIRCUIT.VAL){37.5 HL}) VOL_POUSSAGE_COMPLETE = ON
+            ENDIF
+            
+            IF ((BEERTOT_1101.VAL >= (BEERTAR_1101.VAL - OST1_VOL.VAL)) OR \
+                (FILT_TANK_LEVEL > DEST_HIHI)) VOL_POUSSAGE_COMPLETE = ON
+            IF (EDR_PACK_F1_TOTAL.VAL > (VOL_EDR_CIRCUIT.VAL * 1.5)) VOL_POUSSAGE_COMPLETE = ON
+            IF (FILTCTRL_1101.VAL <> POUSSAGE_EDR) CTRL_POUSSAGE_CHANGE = ON
+            
+            SET VOL_POUSSAGE_INTEG.VAL = EDR_PACK_F1_TOTAL.VAL
+            
+        UNTIL ( VOL_POUSSAGE_COMPLETE = ON OR CTRL_POUSSAGE_CHANGE = ON OR ALC_DEVIATION = ON OR \
+                FILT1_EDR_PACKED.VAL = ON)
+                
+        MEM_TOTAL = (2 * VOL_EDR_CIRCUIT.VAL) - EDR_PACK_F1_TOTAL.VAL
+        
+        IF (VOL_POUSSAGE_COMPLETE = ON) SET I101_TRAN_VOL.VAL = ON
+        IF (CTRL_POUSSAGE_CHANGE = ON) SET I101_TRAN_SEQ.VAL = ON
+        IF (ALC_DEVIATION = ON) SET I101_TRAN_ALC.VAL = ON
+        POUSSAGE_EDR_COMPLET = TRUE
+    ENDIF
+    
+    IF (TYPE_POUSSAGE_REQUIS = SAME OR TYPE_POUSSAGE_REQUIS = COMPATIBLE)THEN
+        REPEAT
+            WAIT FOR 1 SEC
+            
+            IF (FILTCTRL_1101.VAL <> BEER_RUN) THEN
+                HOLD BIERE_PACK_F1_TOTAL
+            ELSE
+                START BIERE_PACK_F1_TOTAL
+            ENDIF
+
+`{*******************************************************************************************************************}
+      {This is the volume that is pushed on beer to beer change. From IST to filter 11.6 hl + in the filtter 25.9 hl 
+            IF (BIERE_PACK_F1_TOTAL.VAL > (VOL_EDR_CIRCUIT.VAL){37.5 HL}) VOL_POUSSAGE_COMPLETE = ON
+ {*******************************************************************************************************************}           
+            
+            IF ((BEERTOT_1101.VAL >= (BEERTAR_1101.VAL - OST1_VOL.VAL)) OR \
+                (FILT_TANK_LEVEL > DEST_HIHI)) VOL_POUSSAGE_COMPLETE = ON
+            IF (FILTCTRL_1101.VAL <> BEER_RUN) CTRL_POUSSAGE_CHANGE = ON
+            
+            SET VOL_POUSSAGE_INTEG.VAL = BIERE_PACK_F1_TOTAL.VAL
+            
+        UNTIL ( VOL_POUSSAGE_COMPLETE = ON OR CTRL_POUSSAGE_CHANGE = ON OR FILT1_EDR_PACKED.VAL = ON)
+                
+        MEM_TOTAL = (2 * VOL_EDR_CIRCUIT.VAL) - BIERE_PACK_F1_TOTAL.VAL
+    ENDIF
+
+    HOLD BEER_TOT
+    HOLD PLATO_TOT
+    SET PLATOCTRL_1101.VAL = PAUSE
+    SET I2AIC0360.SP = 0
+        
+    HOLD EDR_PACK_F1_TOTAL
+    HOLD BIERE_PACK_F1_TOTAL
+    HOLD TO_BUTT
+    HOLD TO_DRAIN
+    
+    IF (VOL_POUSSAGE_COMPLETE = ON OR ALC_DEVIATION = ON OR \
+        FILT1_EDR_PACKED.VAL = ON) THEN
+        RECIRC_FLAG = OFF
+        DISPL_DEST = TANK
+    ENDIF 
+
+ENDSUBR {TRANSITION
